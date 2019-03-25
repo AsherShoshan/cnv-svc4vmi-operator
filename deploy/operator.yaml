@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cnv-svc4vmi-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: cnv-svc4vmi-operator
+  template:
+    metadata:
+      labels:
+        name: cnv-svc4vmi-operator
+    spec:
+      serviceAccountName: cnv-svc4vmi-operator
+      containers:
+        - name: cnv-svc4vmi-operator
+          # Replace this with the built image name
+          image: REPLACE_IMAGE
+          command:
+          - cnv-svc4vmi-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "cnv-svc4vmi-operator"

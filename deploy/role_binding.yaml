@@ -1,0 +1,11 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cnv-svc4vmi-operator
+subjects:
+- kind: ServiceAccount
+  name: cnv-svc4vmi-operator
+roleRef:
+  kind: Role
+  name: cnv-svc4vmi-operator
+  apiGroup: rbac.authorization.k8s.io
