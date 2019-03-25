@@ -708,6 +708,26 @@
   revision = "0cf8f7e6ed1d2e3d47d02e3b6e559369af24d803"
 
 [[projects]]
+  name = "kubevirt.io/containerized-data-importer"
+  packages = [
+    ".",
+    "pkg/apis/core",
+    "pkg/apis/core/v1alpha1"
+  ]
+  revision = "1faa7fd21a437486b3e1835153171fd6f4d5327e"
+  version = "v1.6.0"
+
+[[projects]]
+  name = "kubevirt.io/kubevirt"
+  packages = [
+    ".",
+    "pkg/api/v1",
+    "pkg/precond"
+  ]
+  revision = "432f91f3a2bdb3c2624377ad327270c9e146d845"
+  version = "v0.15.0"
+
+[[projects]]
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     "pkg/cache",
@@ -715,15 +735,26 @@
     "pkg/client",
     "pkg/client/apiutil",
     "pkg/client/config",
+    "pkg/controller",
+    "pkg/controller/controllerutil",
+    "pkg/event",
+    "pkg/handler",
+    "pkg/internal/controller",
+    "pkg/internal/controller/metrics",
     "pkg/internal/recorder",
     "pkg/leaderelection",
     "pkg/manager",
     "pkg/metrics",
     "pkg/patch",
+    "pkg/predicate",
+    "pkg/reconcile",
     "pkg/recorder",
     "pkg/runtime/inject",
     "pkg/runtime/log",
+    "pkg/runtime/scheme",
     "pkg/runtime/signals",
+    "pkg/source",
+    "pkg/source/internal",
     "pkg/webhook/admission",
     "pkg/webhook/admission/types",
     "pkg/webhook/internal/metrics",
@@ -754,6 +785,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "903667189e43e675727fd3082957bcb0d3f0483c28b378efe4f22e8a2e99d651"
+  inputs-digest = "e4c42d87161675dc2cfb0bf6db8d3c4220752350c0060c4ffa68b4b83540dd3c"
   solver-name = "gps-cdcl"
   solver-version = 1

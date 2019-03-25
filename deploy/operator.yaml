@@ -16,10 +16,10 @@ spec:
       containers:
         - name: cnv-svc4vmi-operator
           # Replace this with the built image name
-          image: REPLACE_IMAGE
+          image: quay.io/example/cnv-svc4vmi-operator:v0.0.1
           command:
           - cnv-svc4vmi-operator
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
               valueFrom:

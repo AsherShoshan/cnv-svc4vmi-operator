@@ -1,0 +1,7 @@
+apiVersion: app.dummy/v1alpha1
+kind: Dummy
+metadata:
+  name: example-dummy
+spec:
+  # Add fields here
+  size: 3
