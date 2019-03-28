@@ -1,4 +1,4 @@
-package dummy
+package ctl
 
 import (
 	"context"
@@ -52,7 +52,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource Vmi with below predicate
 	chck := func(vmi *kvv1.VirtualMachineInstance) bool {
-		return vmi.Status.Phase == "Running"
+		return vmi.Labels["kubevirt.io/svc"] == "true"
 	}
 
 	pred := predicate.Funcs{
@@ -61,8 +61,10 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			return chck(vmi)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			vmi := e.ObjectOld.DeepCopyObject().(*kvv1.VirtualMachineInstance)
-			return chck(vmi)
+			vmio := e.ObjectOld.DeepCopyObject().(*kvv1.VirtualMachineInstance)
+			vmin := e.ObjectNew.DeepCopyObject().(*kvv1.VirtualMachineInstance)
+			return (chck(vmio) || chck(vmin)) &&
+				vmio.Labels["kubevirt.io/svc"] != vmin.Labels["kubevirt.io/svc"]
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false
@@ -77,12 +79,27 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	pred = predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
+
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner CnvPod
 	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &kvv1.VirtualMachineInstance{},
-	})
+	}, pred)
 	if err != nil {
 		return err
 	}
@@ -109,8 +126,8 @@ type Reconciler struct {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Vmis")
+	reqLogger := log.WithValues("Namespace", request.Namespace, "Name", request.Name)
+	reqLogger.Info("Reconciling Vmi")
 
 	// Fetch the Vmi instance
 	vmi := &kvv1.VirtualMachineInstance{}
@@ -131,23 +148,27 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	// Check if the Service already exists
+	// Check if the Service exists
 	svcfound := &corev1.Service{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svcfound)
 
-	// Check if to create the Service
-	if err != nil && errors.IsNotFound(err) && vmi.Labels["kubevirt.io/svc"] == "true" {
-		reqLogger.Info("Creating a new Service", "Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
-		if err = r.client.Create(context.TODO(), svc); err != nil {
-			return reconcile.Result{}, err
+	if err != nil {
+		if errors.IsNotFound(err) { //service not found
+			if vmi.Labels["kubevirt.io/svc"] == "true" { //only with this label
+				reqLogger.Info("Creating Service", "Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
+				if err = r.client.Create(context.TODO(), svc); err != nil {
+					return reconcile.Result{}, err
+				} //else don't requeue
+			}
+		} else {
+			return reconcile.Result{}, err //other error
 		}
-	}
-
-	// Check if to delete the Service
-	if err == nil && vmi.Labels["kubevirt.io/svc"] != "true" {
-		reqLogger.Info("Deleting Service", "Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
-		if err = r.client.Delete(context.TODO(), svc); err != nil {
-			return reconcile.Result{}, err
+	} else { //Service found
+		if vmi.Labels["kubevirt.io/svc"] != "true" { // Check if to delete the Service
+			reqLogger.Info("Deleting Service", "Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
+			if err = r.client.Delete(context.TODO(), svc); err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -185,15 +206,6 @@ func (r *Reconciler) newSvcForVmi(vmi *kvv1.VirtualMachineInstance) (*corev1.Ser
 }
 
 /*
-	if vmi.Labels["kubevirt.io/svc"] != svc.Spec.Selector["kubevirt.io/svc"] {
-		vmi.Labels["kubevirt.io/svc"] = svc.Spec.Selector["kubevirt.io/svc"]
-		err = r.client.Update(context.TODO(), vmi)
-		if err != nil {
-			reqLogger.Error(err, "Failed to update Vmi", "Vmi.Namespace", vmi.Namespace, "Vmi.Name", vmi.Name)
-			return reconcile.Result{}, err
-		}
-	}
-
 	// Fetch the Vmi pod virt-lancher by uid and update the label kubirt.io/svc
 	opts := &client.ListOptions{}
 	opts.SetLabelSelector(fmt.Sprintf("kubevirt.io/created-by=%s", vmi.UID))

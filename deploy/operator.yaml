@@ -16,7 +16,7 @@ spec:
       containers:
         - name: cnv-svc4vmi-operator
           # Replace this with the built image name
-          image: quay.io/example/cnv-svc4vmi-operator:v0.0.1
+          image: ashershoshan/cnv-svc4vmi-operator:v0.0.1
           command:
           - cnv-svc4vmi-operator
           imagePullPolicy: IfNotPresent
