@@ -5,11 +5,9 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -143,22 +141,22 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
-	// Create a new Service object - not create it yet
-	svc, err := r.newSvcForVmi(vmi)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	// Check if the Service exists
-	svcfound := &corev1.Service{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: svc.Name, Namespace: svc.Namespace}, svcfound)
+	// Check if the Service exists  (service-name = vmi-name)
+	svc := &corev1.Service{}
+	err = r.client.Get(context.TODO(), request.NamespacedName, svc)
 
 	if err != nil {
 		if errors.IsNotFound(err) { //service not found
 			if vmi.Labels["kubevirt.io/svc"] == "true" { //only with this label
+				// Create a new Service struct
+				if svc, err = r.newSvcForVmi(vmi); err != nil {
+					return reconcile.Result{}, err
+				}
+				// Create the service
 				reqLogger.Info("Creating Service", "Service.Namespace", svc.Namespace, "Service.Name", svc.Name)
 				if err = r.client.Create(context.TODO(), svc); err != nil {
 					return reconcile.Result{}, err
-				} //else don't requeue
+				}
 			}
 		} else {
 			return reconcile.Result{}, err //other error
@@ -196,7 +194,7 @@ func (r *Reconciler) newSvcForVmi(vmi *kvv1.VirtualMachineInstance) (*corev1.Ser
 				"kubevirt.io/created-by": fmt.Sprintf("%s", vmi.UID),
 				//"kubevirt.io/svc": vmi.Name,
 			},
-			Type: v1.ServiceTypeNodePort,
+			Type: corev1.ServiceTypeNodePort,
 		},
 	}
 
@@ -204,51 +202,3 @@ func (r *Reconciler) newSvcForVmi(vmi *kvv1.VirtualMachineInstance) (*corev1.Ser
 	err := controllerutil.SetControllerReference(vmi, svc, r.scheme)
 	return svc, err
 }
-
-/*
-	// Fetch the Vmi pod virt-lancher by uid and update the label kubirt.io/svc
-	opts := &client.ListOptions{}
-	opts.SetLabelSelector(fmt.Sprintf("kubevirt.io/created-by=%s", vmi.UID))
-	opts.InNamespace(request.NamespacedName.Namespace)
-
-	podList := &corev1.PodList{}
-	err = r.client.List(context.TODO(), opts, podList)
-	if err != nil {
-		reqLogger.Info("Unable to find virt-launcher pod for Vmi", "Vmi.Namespace", vmi.Namespace, "Vmi.Name", vmi.Name)
-		return reconcile.Result{}, err
-	}
-	for _, v := range podList.Items {
-		pod := &corev1.Pod{}
-		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: v.GetName(), Namespace: v.GetNamespace()}, pod); err != nil {
-			return reconcile.Result{}, err
-		}
-		if strings.HasPrefix(pod.Name, "virt-launcher-") &&
-			pod.Labels["kubevirt.io/svc"] != svc.Spec.Selector["kubevirt.io/svc"] {
-			pod.Labels["kubevirt.io/svc"] = svc.Spec.Selector["kubevirt.io/svc"]
-			if err = r.client.Update(context.TODO(), pod); err != nil {
-				reqLogger.Error(err, "Failed to update Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-				return reconcile.Result{}, err
-			}
-		}
-	}
-*/
-
-/*
-func createComponent(err error, obj runtime.Object, kind string, c client.Client) (reconcile.Result, error) {
-	if err != nil && errors.IsNotFound(err) {
-		log.Info("Creating a new " + kind)
-		err = c.Create(context.TODO(), obj)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		// Object CR created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
-	// Object CR already exists - don't requeue
-	log.Info("Skip reconcile: " + kind + " already exists")
-
-	return reconcile.Result{}, nil
-}
-*/

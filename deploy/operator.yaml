@@ -16,10 +16,10 @@ spec:
       containers:
         - name: cnv-svc4vmi-operator
           # Replace this with the built image name
-          image: ashershoshan/cnv-svc4vmi-operator:v0.0.1
+          image: docker.io/ashershoshan/cnv-svc4vmi-operator:v0.0.1
           command:
           - cnv-svc4vmi-operator
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
